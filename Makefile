@@ -20,3 +20,5 @@ export-%:
 .PHONY: clean
 clean:
 	dune clean
+	rm ngoc
+	rm *.dot *.png
