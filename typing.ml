@@ -24,6 +24,39 @@ let rec sizeof = function
 		in aux 0 l
 
 
+(* L'environnement utilisé pour les variables *)
+
+let evar v = { expr_desc = TEident v; expr_typ = v.v_typ }
+
+let new_var =
+  let id = ref 0 in
+  fun x loc ?(used=false) ty ->
+    incr id;
+    { v_name = x; v_id = !id; v_loc = loc; v_typ = ty; v_used = used; v_addr = 0; v_depth = 0 }
+
+module Env = struct
+  module M = Map.Make(String)
+  type t = var M.t
+  let empty = M.empty
+  let mem = M.mem
+  let find = M.find
+  let add env v = M.add v.v_name v env
+
+  let all_vars = ref []
+  let check_unused () =
+    let check v =
+      if v.v_name <> "_" && (not v.v_used) true then error v.v_loc ("unused variable: " ^ v.v_name) in (* on lève une erreur si une variable n'est pas utilisée *)
+    List.iter check !all_vars
+
+
+  let var x loc ?used ty env =
+    let v = new_var x loc ?used ty in
+    all_vars := v :: !all_vars;
+    add env v, v
+
+end
+
+
 (* Notre environnement pour les types structure est simplement une table de hachage *)
 (* Elle associe un string (nom de la structure) à une structure parsée (type Ast.pstruct) *)
 let pstruct_env = Hashtbl.create 0
@@ -87,7 +120,7 @@ let rec pstruct_to_structure ps =
 		add_struct s;
 		let rec fill_fields ofs = function
 			| []              -> ofs
-			| (id, ptyp) :: q ->
+			| (id, ptyp) :: reste ->
 				let f = { f_name = id.id;
 						  f_typ = (type_type ptyp);
 						  f_ofs = ofs}
@@ -98,7 +131,7 @@ let rec pstruct_to_structure ps =
 						Hashtbl.add fields id.id f;
 						fill_fields (ofs + sizeof (f.f_typ)) reste
 				end
-		in let size = fill_fields 0 0 ps.ps_fields in
+		in let size = fill_fields 0 ps.ps_fields in
 		s.s_size <- size;
 		s
 	end
@@ -184,38 +217,6 @@ let rec eq_type ty1 ty2 = match ty1, ty2 with
 let fmt_used = ref false
 let fmt_imported = ref false
 
-
-(* L'environnement utilisé pour les variables *)
-
-let evar v = { expr_desc = TEident v; expr_typ = v.v_typ }
-
-let new_var =
-  let id = ref 0 in
-  fun x loc ?(used=false) ty ->
-    incr id;
-    { v_name = x; v_id = !id; v_loc = loc; v_typ = ty; v_used = used; v_addr = 0; v_depth = 0 }
-
-module Env = struct
-  module M = Map.Make(String)
-  type t = var M.t
-  let empty = M.empty
-  let mem = M.mem
-  let find = M.find
-  let add env v = M.add v.v_name v env
-
-  let all_vars = ref []
-  let check_unused () =
-    let check v =
-      if v.v_name <> "_" && (not v.v_used) true then error v.v_loc ("unused variable: " ^ v.v_name) in (* on lève une erreur si une variable n'est pas utilisée *)
-    List.iter check !all_vars
-
-
-  let var x loc ?used ty env =
-    let v = new_var x loc ?used ty in
-    all_vars := v :: !all_vars;
-    add env v, v
-
-end
 
 let tvoid = Tmany []
 let make d ty = { expr_desc = d; expr_typ = ty }
