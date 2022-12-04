@@ -13,6 +13,16 @@ exception Anomaly of string
 
 let error loc e = raise (Error (loc, e))
 
+let rec sizeof = function
+	| Tint | Tbool | Tstring | Tptr _ -> 8
+	| Tstruct s -> s.s_size
+	| Twild -> 0
+	| Tmany l -> 
+		let rec aux s = function
+			| [] -> s
+			| t :: q -> s + sizeof (Tmany q)
+		in aux 0 l
+
 
 (* Notre environnement pour les types structure est simplement une table de hachage *)
 (* Elle associe un string (nom de la structure) à une structure parsée (type Ast.pstruct) *)
@@ -41,10 +51,10 @@ let check_rec () =
 				| PTident { id = "string" }
 				| PTptr _ -> ()
 				| PTident { loc = loc; id = pss } ->
-					if List.mem vus pss
+					if List.mem pss vus
 					then error loc ("recursive structure:" ^ pss)
 					else
-						if (not mem_pstruct pss)
+						if (not (mem_pstruct pss))
 						then error loc ("undefined structure" ^ pss)
 						else begin
 							aux (pss :: vus) (find_pstruct pss).ps_fields;
@@ -388,7 +398,7 @@ and expr_desc env loc = function
 			v.v_used <- true;
 			TEident(v), v.v_typ, false
 		end
-		else Not_found -> error loc ("unbound variable " ^ id)
+		else error loc ("unbound variable " ^ id)
 	end
 
 	| PEdot (e, id) -> begin (* seuls les pointeurs sur des structures contiennent de l'information *)
@@ -429,7 +439,7 @@ and expr_desc env loc = function
 				if ty = tvoid
 				then aux reste
 				else error loc ("in a block all expressions except the last one must have type unit, but here a type " ^ (string_of_typ ty) ^ " expression is given")
-		TEblock(expl), (aux typl), (List.exists (fun x -> x) rtl)
+		in TEblock(expl), (aux typl), (List.exists (fun x -> x) rtl)
 	end
 
 	| PEincdec (e, op) -> begin (* seuls les entiers qui sont des l-values peuvent être incrémentés ou décrémentés *)
@@ -479,18 +489,8 @@ let found_main = ref false
 
 (* 1. declare structures *)
 let phase1 = function
-  | PDstruct ps -> add_pstruct ps
-  | PDfunction _ -> ()
-
-let rec sizeof = function
-	| Tint | Tbool | Tstring | Tptr _ -> 8
-	| Tstruct s -> s.s_size
-	| Twild -> 0
-	| Tmany l -> 
-		let rec aux s = function
-			| [] -> s
-			| t :: q -> s + sizeof (Tmany q)
-		in aux 0 l
+	| PDstruct ps -> add_pstruct ps
+	| PDfunction _ -> ()
 
 
 (* 2. declare functions and type fields *)
@@ -501,7 +501,7 @@ let phase2 = function
 			found_main := true;
 			if (List.length pf.pf_params) <> 0
 				then error pf.pf_name.loc ("function main does not take any argument")
-			if (List.length pf.pf_typ) <> 0
+			else if (List.length pf.pf_typ) <> 0
 				then error pf.pf_name.loc ("function main is expected to have type void")
 		end;
 		add_pfunc pf 
