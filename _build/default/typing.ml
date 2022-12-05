@@ -379,7 +379,7 @@ and expr_desc env loc = function
 		let expe, rte = expr env e in
 		let expb, rtb = expr env b in
 		match expe.expr_typ with
-			| Tbool -> TEfor(expe, expb), tvoid, rtb
+			| Tbool -> TEfor(expe, expb), tvoid, false
 			| _ as ty -> error loc ("bool expected after command for, but " ^ (string_of_typ ty) ^ " was given")
 	end
 
