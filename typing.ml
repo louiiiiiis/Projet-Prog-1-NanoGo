@@ -264,6 +264,8 @@ let rec flatten = function
 
 (* La fonction qui transforme une expression parsée (Ast.pexpr) en une expression bien typée (Tast.expr) après avoir fait toutes lse vérifications nécessaires *)
 
+let ret_typ = ref tvoid
+
 let rec expr env e =
  let e, ty, rt = expr_desc env e.pexpr_loc e.pexpr_desc in
   { expr_desc = e; expr_typ = ty }, rt
@@ -337,7 +339,7 @@ and expr_desc env loc = function
 		then error loc ("fmt called but not imported")
 		else
 			fmt_used := true;
-			TEprint(List.map (fun e -> fst(expr env e)) e1), tvoid, false
+			TEprint(List.map (fun e -> fst(expr env e)) el), tvoid, false
 	end
 
 	| PEcall ({id="new"}, [{pexpr_desc=PEident {loc = loc; id = id}}]) -> begin (* avec new on doit regarder le type *)
@@ -354,7 +356,7 @@ and expr_desc env loc = function
 		error loc "new expects a type"
 
 	| PEcall (id, el) -> begin (* les fonctions appelés doivent être bien définies, avoir le bon nombre d'arguments et ceux-ci doivent avoir le bon type *)
-		if (not mem_pfunc id.id)
+		if (not (mem_pfunc id.id))
 		then error id.loc ("unknown function called: " ^ id.id)
 		else
 			let pf = find_pfunc id.id in
@@ -394,7 +396,7 @@ and expr_desc env loc = function
 	end
 
 	| PEnil -> (* le pointeur nul *)
-		TEnil, Tvoid, false
+		TEnil, tvoid, false
 
 	| PEident {id=id} -> begin (* Utilisation des variables, on doit vérifier qu'elles existent bien dans l'environnement actuel *)
 		if id = "_" then error loc ("_ can not be used as a variable") else
@@ -408,7 +410,7 @@ and expr_desc env loc = function
 	end
 
 	| PEdot (e, id) -> begin (* seuls les pointeurs sur des structures contiennent de l'information *)
-		if e = PEnil then error loc ("nil does not contain information") else
+		if e.pexpr_desc = PEnil then error loc ("nil does not contain information") else
 		let exp, rt = expr env e in
 		match exp.expr_typ with
 			| Tptr (Tstruct s) ->
@@ -519,12 +521,12 @@ let phase2 = function
 
 
 (* 3. type check function bodies *)
-let ret_typ = ref tvoid
 let decl = function
 	| PDfunction pf ->
 		let f, env_f, body_f = pfunc_to_function_ pf in
-		ret_typ := f.fn_typ;
-		let e, rt = expr env_f body_f in
+		ret_typ := typl_to_typ f.fn_typ;
+		let env = ref env_f in
+		let e, rt = expr env body_f in
 		if (f.fn_typ <> []) && (not rt)
 		then error pf.pf_name.loc ("this function is expected to return something, but does not always do so")
 		else TDfunction (f, e)
