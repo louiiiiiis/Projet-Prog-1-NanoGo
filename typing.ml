@@ -45,7 +45,7 @@ module Env = struct
   let all_vars = ref []
   let check_unused () =
     let check v =
-      if v.v_name <> "_" && (not v.v_used) true then error v.v_loc ("unused variable: " ^ v.v_name) in (* on lève une erreur si une variable n'est pas utilisée *)
+      if v.v_name <> "_" && (not v.v_used) then error v.v_loc ("unused variable: " ^ v.v_name) in (* on lève une erreur si une variable n'est pas utilisée *)
     List.iter check !all_vars
 
 
@@ -177,16 +177,17 @@ let pfunc_to_function_ pf =
 	if mem_func pf.pf_name.id
 	then find_func pf.pf_name.id
 	else begin
-		let env = Env.empty in
+		let env = ref Env.empty in
 		let pparam_to_var (id, ptyp) =
-			if Env.mem id.id env
+			if Env.mem id.id !env
 			then error id.loc ("the name " ^ id.id ^ " is used twice in the arguments of the function " ^ pf.pf_name.id)
 			else
-				Env.var id.id id.loc (type_type ptyp) env
+				let e, v = Env.var id.id id.loc (type_type ptyp) !env
+				in env := e; v
 		in let fn = { fn_name = pf.pf_name.id;
-					  fn_params = List.map pparam_to_var pf.pf_params ;
+					  fn_params = List.map pparam_to_var pf.pf_params;
 					  fn_typ = List.map type_type pf.pf_typ }
-		in let f = fn, env, pf.pf_body
+		in let f = fn, !env, pf.pf_body
 		in add_func f;
 		f
 	end
@@ -276,8 +277,8 @@ and expr_desc env loc = function
 	end
 	
 	| PEbinop (op, e1, e2) -> begin (* les deux membres d'une opération binaire doivent avoir des types qui correspondent *)
-		let exp1, rt1 = expr env e1 in
-		let exp2, rt2 = expr env e2 in
+		let exp1, rt1 = expr !env e1 in
+		let exp2, rt2 = expr !env e2 in
 		if (exp1.expr_desc = TEnil) && (exp2.expr_desc = TEnil) then error loc ("cannot operate with two nil") else
 		let ty1 = exp1.expr_typ in
 		let ty2 = exp2.expr_typ in
@@ -302,26 +303,26 @@ and expr_desc env loc = function
 
 	| PEunop (Uamp, e1) -> begin (* & doit forcément être suivi par une l-value *)
 		if is_l_value e1
-		then let exp1, rt1 = expr env e1 in TEunop(Uamp, exp1), Tptr(exp1.expr_typ), false
+		then let exp1, rt1 = expr !env e1 in TEunop(Uamp, exp1), Tptr(exp1.expr_typ), false
 		else error loc ("l-value expected after &")
 	end
 	
 	| PEunop (Uneg, e1) -> begin (* - doit forcément être suivi par un entier *)
-		let exp1, rt1 = expr env e1 in
+		let exp1, rt1 = expr !env e1 in
 		match exp1.expr_typ with
 			| Tint -> TEunop(Uneg, exp1), Tint, false
 			| _ as ty -> error loc ("int expected after -, but " ^ (string_of_typ ty) ^ " was given")
 	end
 	
 	| PEunop (Unot, e1) -> begin (* ! doit forcément être suivi par un booléen *)
-		let exp1, rt1 = expr env e1 in
+		let exp1, rt1 = expr !env e1 in
 		match exp1.expr_typ with
 			| Tbool -> TEunop(Unot, exp1), Tbool, false
 			| _ as ty -> error loc ("bool expected after !, but " ^ (string_of_typ ty) ^ " was given")
 	end
 
 	| PEunop (Ustar, e1) -> begin (* * doit forcément être suivi par un pointeur *)
-		let exp1, rt1 = expr env e1 in
+		let exp1, rt1 = expr !env e1 in
 		match exp1.expr_typ with
 			| Tptr ty -> TEunop(Ustar, exp1), ty, false
 			| _ as ty -> error loc ("pointer expected after *, but " ^ (string_of_typ ty) ^ " was given")
@@ -332,7 +333,7 @@ and expr_desc env loc = function
 		then error loc ("fmt called but not imported")
 		else
 			fmt_used := true;
-			TEprint(List.map (fun e -> fst(expr env e)) e1), tvoid, false
+			TEprint(List.map (fun e -> fst(expr !env e)) e1), tvoid, false
 	end
 
 	| PEcall ({id="new"}, [{pexpr_desc=PEident {loc = loc; id = id}}]) -> begin (* avec new on doit regarder le type *)
@@ -355,11 +356,11 @@ and expr_desc env loc = function
 			let pf = find_pfunc id.id in
 			let f, f_env, f_body = pfunc_to_function_ pf in
 			let n = List.length f.fn_params in
-			let k = List.length (flatten (List.map (fun e -> (fst(expr env e)).expr_typ) el)) in
+			let k = List.length (flatten (List.map (fun e -> (fst(expr !env e)).expr_typ) el)) in
 			if k < n then error id.loc ("missing arguments in calling function " ^ f.fn_name ^ ": " ^ (string_of_int k) ^ " were given but " ^ (string_of_int n) ^ " were expected")
 			else if k > n then error id.loc ("too many arguments in calling function " ^ f.fn_name ^ ": " ^ (string_of_int k) ^ " were given but " ^ (string_of_int n) ^ " were expected")
 			else begin
-				let expl = List.map (fun e -> fst(expr env e)) el in
+				let expl = List.map (fun e -> fst(expr !env e)) el in
 				let given_types = typl_to_typ (flatten (List.map (fun e -> e.expr_typ) expl)) in
 				let expected_types = typl_to_typ (List.map (fun v -> v.v_typ) f.fn_params) in
 				if (eq_type given_types expected_types)
@@ -369,17 +370,17 @@ and expr_desc env loc = function
 	end
 
 	| PEfor (e, b) -> begin (* la condition d'une boucle for doit être un booléen *)
-		let expe, rte = expr env e in
-		let expb, rtb = expr env b in
+		let expe, rte = expr !env e in
+		let expb, rtb = expr !env b in
 		match expe.expr_typ with
 			| Tbool -> TEfor(expe, expb), tvoid, false
 			| _ as ty -> error loc ("bool expected after command for, but " ^ (string_of_typ ty) ^ " was given")
 	end
 
 	| PEif (e1, e2, e3) -> begin (* la condition d'un 'if then else' doit être un booléen, et les deux branches doivent avoir le même type *)
-		let exp1, rt1 = expr env e1 in
-		let exp2, rt2 = expr env e2 in
-		let exp3, rt3 = expr env e3 in
+		let exp1, rt1 = expr !env e1 in
+		let exp2, rt2 = expr !env e2 in
+		let exp3, rt3 = expr !env e3 in
 		match exp1.expr_typ with
 			| Tbool ->
 				if (eq_type exp2.expr_typ exp3.expr_typ)
@@ -393,9 +394,9 @@ and expr_desc env loc = function
 
 	| PEident {id=id} -> begin (* Utilisation des variables, on doit vérifier qu'elles existent bien dans l'environnement actuel *)
 		if id = "_" then error loc ("_ can not be used as a variable") else
-		if Env.mem id env
+		if Env.mem id !env
 		then begin
-			let v = Env.find id env in
+			let v = Env.find id !env in
 			v.v_used <- true;
 			TEident(v), v.v_typ, false
 		end
@@ -404,7 +405,7 @@ and expr_desc env loc = function
 
 	| PEdot (e, id) -> begin (* seuls les pointeurs sur des structures contiennent de l'information *)
 		if e = PEnil then error loc ("nil does not contain information") else
-		let exp, rt = expr env e in
+		let exp, rt = expr !env e in
 		match exp.expr_typ with
 			| Tptr (Tstruct s) ->
 				let fields = s.s_fields in
@@ -419,7 +420,7 @@ and expr_desc env loc = function
 	end
 
 	| PEreturn el -> begin (* Le type de ce qui est retourné doit correspondre au type de la fonction appelée *)
-		let expl = List.map (fun e -> fst (expr env e)) el in
+		let expl = List.map (fun e -> fst (expr !env e)) el in
 		let typs = flatten (List.map (fun exp -> exp.expr_typ) expl) in
 		let types = match typs with
 			| [x] -> x
@@ -430,8 +431,8 @@ and expr_desc env loc = function
 	end
 
 	| PEblock el -> begin (* Dans un bloc toutes les expressions doivent être de types unit sauf éventuellement la dernière *)
-		let expl = List.map (fun e -> fst (expr env e)) el in
-		let rtl = List.map (fun e -> snd (expr env e)) el in
+		let expl = List.map (fun e -> fst (expr !env e)) el in
+		let rtl = List.map (fun e -> snd (expr !env e)) el in
 		let typl = List.map (fun exp -> exp.expr_typ) expl in
 		let rec aux = function
 			| [] -> tvoid
@@ -446,7 +447,7 @@ and expr_desc env loc = function
 	| PEincdec (e, op) -> begin (* seuls les entiers qui sont des l-values peuvent être incrémentés ou décrémentés *)
 		if is_l_value e
 		then 
-			let exp, rt = expr env e in
+			let exp, rt = expr !env e in
 			match exp.expr_typ with
 				| Tint -> TEincdec(exp, op), tvoid, false
 				| _ as ty -> error loc ("only integers can be incremented/decremented, but " ^ (string_of_typ ty) ^ " was given")
@@ -457,31 +458,35 @@ and expr_desc env loc = function
 		if el = []
 		then error loc ("type must be declared in empty declarations")
 		else begin
-			let types = flatten(List.map (fun e -> (fst (expr env e)).expr_typ) el) in
+			let types = flatten(List.map (fun e -> (fst (expr !env e)).expr_typ) el) in
 			let rec make_vars l = function
 				| [], [] -> l
-				| id :: r1, ty :: r2 -> (Env.var id.id id.loc ty env) :: l
+				| id :: r1, ty :: r2 ->
+					let new_env, v = Env.var id.id id.loc ty !env
+					in env := new_env; v :: l
 				| _ -> error loc ("incorrect number of arguments in the declaration")
 			in let vars = make_vars [] (idl, types)
-			in TEvars(vars, List.map (fun e -> (fst (expr env e))) el), tvoid, false
+			in TEvars(vars, List.map (fun e -> (fst (expr !env e))) el), tvoid, false
 		end
 	end
 
 	| PEvars (idl, Some ptyp, el) -> begin (* Déclaration de variables en précisant le type *)
 		let ty = type_type ptyp in
 		if el = []
-		then TEvars((List.map (fun id -> (Env.var id.id id.loc ty env)) idl), []), tvoid, false
+		then TEvars((List.map (fun id -> (let new_env, v = Env.var id.id id.loc ty !env in env := new_env; v)) idl), []), tvoid, false
 		else begin
-			let types = flatten(List.map (fun e -> (fst (expr env e)).expr_typ) el) in
+			let types = flatten(List.map (fun e -> (fst (expr !env e)).expr_typ) el) in
 			let rec make_vars l = function
 				| [], [] -> l
 				| id :: r1, typ :: r2 ->
 					if eq_type ty typ
-					then (Env.var id.id id.loc ty env) :: l
+					then
+						let new_env, v = Env.var id.id id.loc ty !env
+						in env := new_env; v :: l
 					else error loc ("wrong type in the declaration, " ^ (string_of_typ typ) ^ " was given but " ^ (string_of_typ ty) ^ " was expected")
 				| _ -> error loc ("incorrect number of arguments in the declaration")
 			in let vars = make_vars [] (idl, types)
-			in TEvars(vars, List.map (fun e -> (fst (expr env e))) el), tvoid, false
+			in TEvars(vars, List.map (fun e -> (fst (expr !env e))) el), tvoid, false
 		end
 	end
 
