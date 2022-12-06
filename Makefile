@@ -21,4 +21,4 @@ export-%:
 clean:
 	dune clean
 	rm ngoc
-	rm *.dot *.png
+	rm *.dot *.png *.s
