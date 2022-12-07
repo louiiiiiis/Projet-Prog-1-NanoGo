@@ -413,16 +413,46 @@ and expr_desc env loc = function
 		if e.pexpr_desc = PEnil then error loc ("nil does not contain information") else
 		let exp, rt = expr env e in
 		match exp.expr_typ with
-			| Tptr (Tstruct s) ->
+			| Tstruct s | Tptr (Tstruct s) ->
 				let fields = s.s_fields in
 				if Hashtbl.mem fields id.id
-				then let field = Hashtbl.find fields id.id in TEdot(exp, field), field.f_typ, false
+				then
+					let field = Hashtbl.find fields id.id in
+					TEdot(exp, field), field.f_typ, false
 				else error loc ("structure " ^ s.s_name ^ " does not contain field named " ^ id.id)
-			| _ as ty -> error loc ("type " ^ (string_of_typ ty) ^ " cannot contain information, a pointer on a structure is expected")
+			| _ as ty -> error loc ("type " ^ (string_of_typ ty) ^ " cannot contain information, a structure or a pointer on a structure is expected")
 	end
 
-	| PEassign (lvl, el) -> begin
-		error loc ("assign ?")
+	| PEassign (lvl, el) -> begin (* les valeurs à gauches doivent être des l-values et les types à droite doivent correspondre *)
+		let rec aux l1 l2 = function
+			| [], [] -> l1, l2
+			| lv :: rl, e :: re ->
+				if is_l_value lv
+				then
+					let explv, rtlv = expr env lv in
+					let expe, rte = expr env e in
+					match explv.expr_desc with
+						| TEident v ->
+							if v.v_typ = expe.expr_typ
+							then aux (explv :: l1) (expe :: l2) (rl, re)
+							else error e.pexpr_loc ("unmatching type in the assignement, " ^ (string_of_typ expe.expr_typ) ^ " was given but " ^ (string_of_typ v.v_typ) ^ " was expected")
+						| TEdot (exp, f) -> begin
+							match exp.expr_typ with
+								| Tstruct s | Tptr (Tstruct s) ->
+									let fields = s.s_fields in
+									if Hashtbl.mem fields f.f_name
+									then 
+										if f.f_typ = expe.expr_typ
+										then aux (explv :: l1) (expe :: l2) (rl, re)
+										else error e.pexpr_loc ("unmatching type in the assignment, " ^ (string_of_typ expe.expr_typ) ^ " was given but " ^ (string_of_typ f.f_typ) ^ " was expected")
+									else error loc ("unexpected error")
+								| _ -> error loc ("unexpected error")
+						end
+						| _ -> error lv.pexpr_loc ("only variables and structure fields can be assigned")
+				else error lv.pexpr_loc ("only l-calues can be assigned")
+			| _ -> error loc ("unmatching number of arguments in the assignement")
+			in let new_lvl, new_el = aux [] [] (lvl, el) in
+			TEassign(new_lvl, new_el), tvoid, false
 	end
 
 	| PEreturn el -> begin (* Le type de ce qui est retourné doit correspondre au type de la fonction appelée *)
@@ -446,7 +476,9 @@ and expr_desc env loc = function
 			| ty :: reste ->
 				if ty = tvoid
 				then aux reste
-				else error loc ("in a block all expressions except the last one must have type unit, but here a type " ^ (string_of_typ ty) ^ " expression is given")
+				else 
+					if aux reste = tvoid then ty
+					else error loc ("in a block all expressions except eventually one must have type unit")
 		in TEblock(expl), (aux typl), (List.exists (fun x -> x) rtl)
 	end
 

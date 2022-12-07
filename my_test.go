@@ -1,17 +1,20 @@
 package main
 import "fmt"
 
-type T struct { s int }
+func fact(n int) int {
+	if n <= 1 {
+		return 1;
+	}
+	return n * fact(n-1);
+}
+
+func foo(x int) (int, int) {
+	return x, x+1
+}
 
 func main() {
-	var x, y, z int
-	x, y, z = 12, 14, 0
-	var x *T
-	for n := 0; n <= 10; n++ {
-		fmt.Print(n, y)
-		fmt.Print(n, x)
-		fmt.Print("\n")
-	}
+	x,y := foo(fact(20))
+	fmt.Print(x+y+1, "\n");
 }
 
 
