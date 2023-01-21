@@ -86,13 +86,13 @@ let rec expr env e = match e.expr_desc with
     let l = alloc_string s in
 	movq (ilab l) (reg rdi)
   | TEbinop (Band, e1, e2) -> (* et lazy : si (non e1) alors false sinon e2 *)
-	let l = new_label in
+	let l = new_label () in
     (expr env e1) ++ testq (reg rdi) (reg rdi) ++ je l ++ (expr env e2) ++ label l
   | TEbinop (Bor, e1, e2) -> (* ou lazy : si e1 alors true sinon e2 *)
-    let l = new_label in
+    let l = new_label () in
     (expr env e1) ++ testq (reg rdi) (reg rdi) ++ jne l ++ (expr env e2) ++ label l
   | TEbinop (Blt | Ble | Bgt | Bge as op, e1, e2) -> (* comparaison d'entiers : on place le drapeau correspondant à la comparaison puis on met le résultat dans rdi *)
-	let l = new_label in
+	let l = new_label () in
     (expr env e1) ++ movq (reg rdi) (reg rsi) ++ (expr env e2) ++ movq (reg rdi) (reg rdx)
 	++ movq (imm 1) (reg rdi) ++ cmpq (reg rdx) (reg rsi) ++ (match op with | Blt -> jl | Ble -> jle | Bgt -> jg | Bge -> jge) l
 	++ movq (imm 0) (reg rdi) ++ label l
@@ -103,7 +103,7 @@ let rec expr env e = match e.expr_desc with
     (expr env e1) ++ movq (reg rdi) (reg rax) ++ (expr env e1) ++ movq (imm 0) (reg rdx)
 	++ idivq (reg rdi) ++ movq (match op with | Bdiv -> (reg rax) | Bmod -> (reg rdx)) (reg rdi)
   | TEbinop (Beq | Bne as op, e1, e2) -> (* = et != *)
-    let l = new_label in
+    let l = new_label () in
     (expr env e1) ++ movq (reg rdi) (reg rsi) ++ (expr env e2) ++ movq (reg rdi) (reg rdx)
 	++ movq (imm 1) (reg rdi) ++ cmpq (reg rsi) (reg rdi) ++ (match op with | Beq -> je | Bne -> jne) l
 	++ movq (imm 0) (reg rdi) ++ label l
@@ -112,7 +112,7 @@ let rec expr env e = match e.expr_desc with
   | TEunop (Unot, e1) -> (* négation de booléens *)
     (expr env e1) ++ notq (reg rdi)
   | TEunop (Uamp, e1) -> (* récupération d'adresse *)
-    (expr env e1) ++ movq (reg rdi) (reg rsi) ++ leaq (reg rsi) (reg rdi)
+    assert false
   | TEunop (Ustar, e1) -> (* valeur d'un pointeur *)
     (expr env e1) ++ movq (ind rdi) (reg rdi) 
   | TEprint el -> (* on a différentes fonctions pour print les différents types *)
@@ -121,8 +121,8 @@ let rec expr env e = match e.expr_desc with
 	| t :: q -> begin
 	  match t.expr_typ with
 	  | Tint -> (expr env t) ++ call "print_int"
-	  | Tptr -> (expr env t) ++ call "print_ptr"
-	  | Tbool -> let l = new_label in (expr env t) ++ testq (reg rdi) (reg rdi) ++ movq (ilab "false") (reg rdi) ++ je l ++ movq (ilab "true") (reg rdi) ++ label l ++ call "print_string"
+	  | Tptr _ -> (expr env t) ++ call "print_ptr"
+	  | Tbool -> let l = new_label () in (expr env t) ++ testq (reg rdi) (reg rdi) ++ movq (ilab "false") (reg rdi) ++ je l ++ movq (ilab "true") (reg rdi) ++ label l ++ call "print_string"
 	  | Tstring -> (expr env t) ++ call "print_string"
 	  end
 	  ++ movq (ilab "S_space") (reg rdi) ++ call "print_string" ++ (aux q)
@@ -138,7 +138,7 @@ let rec expr env e = match e.expr_desc with
   | TEblock el -> (* traitement d'un block *)
     let rec aux = function
 	| [] -> nop
-	| {expr_desc = TEvars(vl)} :: reste -> begin
+	| {expr_desc = TEvars(vl, el)} :: reste -> begin
 	  let rec aux2 en_cours = function
 	  | [] -> en_cours
 	  | x :: reste -> aux2 (if x.v_name = "_" then en_cours else (Hashtbl.add env.ofs_var x.v_id env.current; env.current <- env.current + (sizeof x.v_typ); pushq (imm 0) ++ en_cours)) reste
@@ -147,12 +147,12 @@ let rec expr env e = match e.expr_desc with
 	| e :: reste -> (expr env e) ++ aux reste
 	in aux el
   | TEif (e1, e2, e3) -> (* if *)
-    let l1 = new_label in
-	let l2 = new_label in
+    let l1 = new_label () in
+	let l2 = new_label () in
     (expr env e1) ++ testq (reg rdi) (reg rdi) ++ je l1 ++ (expr env e1) ++ jmp l2 ++ label l1 ++ (expr env e2) ++ label l2
   | TEfor (e1, e2) -> (* for *)
-    let l1 = new_label in
-    let l2 = new_label in
+    let l1 = new_label () in
+    let l2 = new_label () in
 	label l1 ++ (expr env e1) ++ testq (reg rdi) (reg rdi) ++ je l2 ++ (expr env e2) ++ jmp l1 ++ label l2
   | TEnew ty ->
      (* TODO code pour new S *) assert false
