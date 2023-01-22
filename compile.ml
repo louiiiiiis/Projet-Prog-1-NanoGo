@@ -118,7 +118,7 @@ let rec expr env e = match e.expr_desc with
 	| t :: q -> begin
 	  match t.expr_typ with
 	  | Tint -> (expr env t) ++ call "print_int"
-	  | Tbool -> let l = new_label in (expr env t) ++ testq (reg rdi) (reg rdi) ++ movq (ilab "false") (reg rdi) ++ je l ++ movq (ilab "true") (reg rdi) ++ label l ++ call "print_string"
+	  | Tbool -> let l = new_label () in (expr env t) ++ testq (reg rdi) (reg rdi) ++ movq (ilab "false") (reg rdi) ++ je l ++ movq (ilab "true") (reg rdi) ++ label l ++ call "print_string"
 	  | Tstring -> (expr env t) ++ call "print_string"
 	  | _ -> failwith("not printable type, work in progress...")
 	  end
@@ -153,7 +153,7 @@ let rec expr env e = match e.expr_desc with
   | TEcall (f, el) -> (* appel de fonction : on place tous les arguments sur la pile puis on sauvegarde %rbp et on appelle la fonction *)
     let rec aux = function
 	  | [] -> nop
-	  | e :: re -> (aux re) ++ (expre env e) ++ pushq (reg rdi)
+	  | e :: re -> (aux re) ++ (expr env e) ++ pushq (reg rdi)
 	in aux el
 	++ call ("F_" ^ f.fn_name)
 	++ movq (reg rax) (reg rdi)
@@ -166,8 +166,8 @@ let rec expr env e = match e.expr_desc with
         env.current_ofs <- env.current_ofs - 8;
 		Hashtbl.add env.vars v.v_id env.current_ofs;
 		match e.expr_desc with 
-		  | TEnil -> pushq (imm 0) ++ (aux reste)
-		  | _ -> (expr env e) ++ pushq (reg rdi) ++ (aux reste)
+		  | TEnil -> pushq (imm 0) ++ (aux (rv, re))
+		  | _ -> (expr env e) ++ pushq (reg rdi) ++ (aux (rv, re))
 	  end
 	in aux (vl, el)
   | TEreturn [] -> (* retour de fonction de type unit *)
@@ -185,7 +185,7 @@ let function_ f e =
   let env = new_env ("E_" ^ s) (Hashtbl.create 0) 0 in
   let rec aux ofs = function
     | [] -> ()
-	| x :: rx -> Hashtbl.add env x.v_id ofs; aux (ofs + 8) rx
+	| x :: rx -> Hashtbl.add env.vars x.v_id ofs; aux (ofs + 8) rx
   in aux 8 f.fn_params;
   label ("F_" ^ s) ++ pushq (reg rbp) ++ movq (reg rsp) (reg rbp) ++ expr env e
 
@@ -212,7 +212,7 @@ let file ?debug:(b=false) dl =
       label "S_int" ++ string "%ld" ++
 	  label "S_string" ++ string "%s" ++
 	  label "S_space" ++ string " " ++
-	  label "S_newline" ++ string "\n"
+	  label "S_newline" ++ string "\n" ++
       (Hashtbl.fold (fun l s d -> label l ++ string s ++ d) strings nop)
     ;
   }
