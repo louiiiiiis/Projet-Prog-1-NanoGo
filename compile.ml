@@ -52,15 +52,12 @@ let new_label =
 
 type env = {
   exit_label: string;
-  ofs_this: int;
-  nb_locals: int ref; (* maximum *)
-  next_local: int; (* 0, 1, ... *)
-  ofs_var: (int, int) Hashtbl.t; (* donne l'offset des variables dans la pile, à partir de leur id *)
-  mutable current: int (* donne la position actuelle du pointeur sur la pile *)
+  vars: (int, int) Hashtbl.t; (* stocke l'offset des variables dans la pile *)
+  mutable current_ofs: int (* information sur la profondeur actuelle de pile *)
 }
 
-let empty_env =
-  { exit_label = ""; ofs_this = -1; nb_locals = ref 0; next_local = 0; ofs_var = Hashtbl.create 0; current = 0 }
+let new_env exit vars current =
+  { exit_label = exit; vars = vars; current_ofs = current }
 
 let mk_bool d = { expr_desc = d; expr_typ = Tbool }
 
@@ -102,7 +99,7 @@ let rec expr env e = match e.expr_desc with
   | TEbinop (Bdiv | Bmod as op, e1, e2) -> (* opérations / et % pour les entiers *)
     (expr env e1) ++ movq (reg rdi) (reg rax) ++ (expr env e1) ++ movq (imm 0) (reg rdx)
 	++ idivq (reg rdi) ++ movq (match op with | Bdiv -> (reg rax) | Bmod -> (reg rdx)) (reg rdi)
-  | TEbinop (Beq | Bne as op, e1, e2) -> (* = et != *)
+  | TEbinop (Beq | Bne as op, e1, e2) -> (* = et !=, mais seulement pour les entiers *)
     let l = new_label () in
     (expr env e1) ++ movq (reg rdi) (reg rsi) ++ (expr env e2) ++ movq (reg rdi) (reg rdx)
 	++ movq (imm 1) (reg rdi) ++ cmpq (reg rsi) (reg rdi) ++ (match op with | Beq -> je | Bne -> jne) l
@@ -111,40 +108,37 @@ let rec expr env e = match e.expr_desc with
     (expr env e1) ++ negq (reg rdi)
   | TEunop (Unot, e1) -> (* négation de booléens *)
     (expr env e1) ++ notq (reg rdi)
-  | TEunop (Uamp, e1) -> (* récupération d'adresse *)
-    assert false
+  | TEunop (Uamp, e1) ->
+    (* TODO code pour & *) assert false 
   | TEunop (Ustar, e1) -> (* valeur d'un pointeur *)
-    (expr env e1) ++ movq (ind rdi) (reg rdi) 
+    (expr env e1) ++ movq (ind rdi) (reg rdi)
   | TEprint el -> (* on a différentes fonctions pour print les différents types *)
     let rec aux = function
 	| [] -> movq (ilab "S_newline") (reg rdi) ++ call "print_string"
 	| t :: q -> begin
 	  match t.expr_typ with
 	  | Tint -> (expr env t) ++ call "print_int"
-	  | Tptr _ -> (expr env t) ++ call "print_ptr"
-	  | Tbool -> let l = new_label () in (expr env t) ++ testq (reg rdi) (reg rdi) ++ movq (ilab "false") (reg rdi) ++ je l ++ movq (ilab "true") (reg rdi) ++ label l ++ call "print_string"
+	  | Tbool -> let l = new_label in (expr env t) ++ testq (reg rdi) (reg rdi) ++ movq (ilab "false") (reg rdi) ++ je l ++ movq (ilab "true") (reg rdi) ++ label l ++ call "print_string"
 	  | Tstring -> (expr env t) ++ call "print_string"
+	  | _ -> failwith("not printable type, work in progress...")
 	  end
 	  ++ movq (ilab "S_space") (reg rdi) ++ call "print_string" ++ (aux q)
 	in aux el
   | TEident x -> (* appel d'une variable *)
-    movq (ind ~ofs:(Hashtbl.find env.ofs_var x.v_id) rbp) (reg rdi)
-  | TEassign ([{expr_desc=TEident x}], [e1]) -> (* affectation unique *)
-    (expr env e1) ++ (match x.v_name with | "_" -> nop | _ -> movq (reg rdi) (ind ~ofs:(Hashtbl.find env.ofs_var x.v_id) rbp))
-  | TEassign ([lv], [e1]) ->
-    (* TODO code pour x1,... := e1,... *) assert false 
-  | TEassign (_, _) ->
-    assert false
-  | TEblock el -> (* traitement d'un block *)
+    movq (ind ~ofs:(Hashtbl.find env.vars x.v_id) rbp) (reg rdi)
+  | TEassign ([{expr_desc=TEident x}], [e1]) -> (* assignation d'une valeur à une variable *)
+    (expr env e1) ++ (match x.v_name with | "_" -> nop | _ -> movq (reg rdi) (ind ~ofs:(Hashtbl.find env.vars x.v_id) rbp))
+  | TEassign (vl, el) -> (* assignations en parallèle *)
     let rec aux = function
-	| [] -> nop
-	| {expr_desc = TEvars(vl, el)} :: reste -> begin
-	  let rec aux2 en_cours = function
-	  | [] -> en_cours
-	  | x :: reste -> aux2 (if x.v_name = "_" then en_cours else (Hashtbl.add env.ofs_var x.v_id env.current; env.current <- env.current + (sizeof x.v_typ); pushq (imm 0) ++ en_cours)) reste
-	  in aux2 nop el
-	  end
-	| e :: reste -> (expr env e) ++ aux reste
+	  | [], [] -> nop
+	  | {expr_desc=TEident x} :: rv, e :: re -> (expr env e) ++ (match x.v_name with | "_" -> nop | _ -> movq (reg rdi) (ind ~ofs:(Hashtbl.find env.vars x.v_id) rbp)) ++ (aux (rv, re))
+	in aux (vl, el)
+  | TEassign (_, _) ->
+     assert false
+  | TEblock el -> (* traitement des blocs *)
+    let rec aux = function
+	  | [] -> nop
+	  | e :: re -> (expr env e) ++ (aux re)
 	in aux el
   | TEif (e1, e2, e3) -> (* if *)
     let l1 = new_label () in
@@ -156,16 +150,30 @@ let rec expr env e = match e.expr_desc with
 	label l1 ++ (expr env e1) ++ testq (reg rdi) (reg rdi) ++ je l2 ++ (expr env e2) ++ jmp l1 ++ label l2
   | TEnew ty ->
      (* TODO code pour new S *) assert false
-  | TEcall (f, el) ->
-     (* TODO code pour appel fonction *) assert false
+  | TEcall (f, el) -> (* appel de fonction : on place tous les arguments sur la pile puis on sauvegarde %rbp et on appelle la fonction *)
+    let rec aux = function
+	  | [] -> nop
+	  | e :: re -> (aux re) ++ (expre env e) ++ pushq (reg rdi)
+	in aux el
+	++ call ("F_" ^ f.fn_name)
+	++ movq (reg rax) (reg rdi)
   | TEdot (e1, {f_ofs=ofs}) ->
      (* TODO code pour e.f *) assert false
-  | TEvars _ ->
-     assert false (* fait dans block *)
-  | TEreturn [] ->
-    (* TODO code pour return e *) assert false
-  | TEreturn [e1] ->
-    (* TODO code pour return e1,... *) assert false
+  | TEvars (vl, el) -> (* déclaration de variables et assignation de valeurs *)
+    let rec aux = function
+	  | [], [] -> nop
+	  | v :: rv, e :: re -> begin
+        env.current_ofs <- env.current_ofs - 8;
+		Hashtbl.add env.vars v.v_id env.current_ofs;
+		match e.expr_desc with 
+		  | TEnil -> pushq (imm 0) ++ (aux reste)
+		  | _ -> (expr env e) ++ pushq (reg rdi) ++ (aux reste)
+	  end
+	in aux (vl, el)
+  | TEreturn [] -> (* retour de fonction de type unit *)
+    movq (ind rbp) (reg rbp) ++ ret
+  | TEreturn [e1] -> (* retour de fonction avec un seul élément, on le place dans %rax *)
+    (expr env e1) ++ movq (reg rdi) (reg rax) ++ movq (reg rbp) (reg rsp) ++ movq (ind rbp) (reg rbp) ++ ret
   | TEreturn _ ->
      assert false
   | TEincdec (e1, op) ->
@@ -173,7 +181,13 @@ let rec expr env e = match e.expr_desc with
 
 let function_ f e =
   if !debug then eprintf "function %s:@." f.fn_name;
-  (* TODO code pour fonction *) let s = f.fn_name in label ("F_" ^ s) 
+  let s = f.fn_name in
+  let env = new_env ("E_" ^ s) (Hashtbl.create 0) 0 in
+  let rec aux ofs = function
+    | [] -> ()
+	| x :: rx -> Hashtbl.add env x.v_id ofs; aux (ofs + 8) rx
+  in aux 8 f.fn_params;
+  label ("F_" ^ s) ++ pushq (reg rbp) ++ movq (reg rsp) (reg rbp) ++ expr env e
 
 let decl code = function
   | TDfunction (f, e) -> code ++ function_ f e
@@ -190,14 +204,12 @@ let file ?debug:(b=false) dl =
       ret ++
       funs ++
 	  label "print_int" ++ movq (reg rdi) (reg rsi) ++ movq (ilab "S_int") (reg rdi) ++ xorq (reg rax) (reg rax) ++ call "printf" ++ ret ++
-	  label "print_ptr" ++ movq (reg rdi) (reg rsi) ++ movq (ilab "S_ptr") (reg rdi) ++ xorq (reg rax) (reg rax) ++ call "printf" ++ ret ++
 	  label "print_string" ++ movq (reg rdi) (reg rsi) ++ movq (ilab "S_string") (reg rdi) ++ xorq (reg rax) (reg rax) ++ call "printf" ++ ret
    ;
    (* TODO print pour d'autres valeurs *)
    (* TODO appel malloc de stdlib *)
     data =
       label "S_int" ++ string "%ld" ++
-	  label "S_ptr" ++ string "%p" ++
 	  label "S_string" ++ string "%s" ++
 	  label "S_space" ++ string " " ++
 	  label "S_newline" ++ string "\n"
