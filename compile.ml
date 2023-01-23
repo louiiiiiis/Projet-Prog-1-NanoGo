@@ -171,9 +171,9 @@ let rec expr env e = match e.expr_desc with
 	  end
 	in aux (vl, el)
   | TEreturn [] -> (* retour de fonction de type unit *)
-    movq (ind rbp) (reg rbp) ++ ret
+    jmp env.exit_label
   | TEreturn [e1] -> (* retour de fonction avec un seul élément, on le place dans %rax *)
-    (expr env e1) ++ movq (reg rdi) (reg rax) ++ movq (reg rbp) (reg rsp) ++ movq (ind rbp) (reg rbp) ++ ret
+    (expr env e1) ++ movq (reg rdi) (reg rax) ++ jmp env.exit_label
   | TEreturn _ ->
      failwith("function returning more than 1 element, work in progress...")
   | TEincdec (e1, op) ->
@@ -186,8 +186,8 @@ let function_ f e =
   let rec aux ofs = function
     | [] -> ()
 	| x :: rx -> Hashtbl.add env.vars x.v_id ofs; aux (ofs + 8) rx
-  in aux 8 f.fn_params;
-  label ("F_" ^ s) ++ pushq (reg rbp) ++ movq (reg rsp) (reg rbp) ++ expr env e
+  in aux 16 f.fn_params;
+  label ("F_" ^ s) ++ pushq (reg rbp) ++ movq (reg rsp) (reg rbp) ++ expr env e ++ label ("E_" ^ s) ++ movq (reg rbp) (reg rsp) ++ popq (reg rbp) ++ ret
 
 let decl code = function
   | TDfunction (f, e) -> code ++ function_ f e
