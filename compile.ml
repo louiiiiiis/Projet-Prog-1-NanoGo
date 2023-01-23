@@ -81,29 +81,29 @@ let rec expr env e = match e.expr_desc with
     xorq (reg rdi) (reg rdi)
   | TEconstant (Cstring s) -> (* chaîne de caractères : on la rajoute dans la data *)
     let l = alloc_string s in
-	movq (ilab l) (reg rdi)
+	  movq (ilab l) (reg rdi)
   | TEbinop (Band, e1, e2) -> (* et lazy : si (non e1) alors false sinon e2 *)
-	let l = new_label () in
+	  let l = new_label () in
     (expr env e1) ++ testq (reg rdi) (reg rdi) ++ je l ++ (expr env e2) ++ label l
   | TEbinop (Bor, e1, e2) -> (* ou lazy : si e1 alors true sinon e2 *)
     let l = new_label () in
     (expr env e1) ++ testq (reg rdi) (reg rdi) ++ jne l ++ (expr env e2) ++ label l
   | TEbinop (Blt | Ble | Bgt | Bge as op, e1, e2) -> (* comparaison d'entiers : on place le drapeau correspondant à la comparaison puis on met le résultat dans rdi *)
-	let l = new_label () in
-    (expr env e1) ++ movq (reg rdi) (reg rsi) ++ (expr env e2) ++ movq (reg rdi) (reg rdx)
-	++ movq (imm 1) (reg rdi) ++ cmpq (reg rdx) (reg rsi) ++ (match op with | Blt -> jl | Ble -> jle | Bgt -> jg | Bge -> jge) l
-	++ movq (imm 0) (reg rdi) ++ label l
+	  let l = new_label () in
+    (expr env e1) ++ pushq (reg rdi) ++ (expr env e2) ++ popq rsi ++ movq (reg rdi) (reg rdx)
+	  ++ movq (imm 1) (reg rdi) ++ cmpq (reg rdx) (reg rsi) ++ (match op with | Blt -> jl | Ble -> jle | Bgt -> jg | Bge -> jge | _ -> failwith("weird...")) l
+	  ++ movq (imm 0) (reg rdi) ++ label l
   | TEbinop (Badd | Bsub | Bmul as op, e1, e2) -> (* opérations +, - et * pour les entiers *)
-    (expr env e2) ++ movq (reg rdi) (reg rsi) ++ (expr env e1)
-	++ (match op with | Badd -> addq | Bsub -> subq | Bmul -> imulq) (reg rsi) (reg rdi)
+    (expr env e2) ++ pushq (reg rdi) ++ (expr env e1) ++ popq rsi
+	  ++ (match op with | Badd -> addq | Bsub -> subq | Bmul -> imulq | _ -> failwith("weird...")) (reg rsi) (reg rdi)
   | TEbinop (Bdiv | Bmod as op, e1, e2) -> (* opérations / et % pour les entiers *)
-    (expr env e1) ++ movq (reg rdi) (reg rax) ++ (expr env e1) ++ movq (imm 0) (reg rdx)
-	++ idivq (reg rdi) ++ movq (match op with | Bdiv -> (reg rax) | Bmod -> (reg rdx)) (reg rdi)
+    (expr env e1) ++ pushq (reg rdi) ++ (expr env e1) ++ popq rax ++ movq (imm 0) (reg rdx)
+	  ++ idivq (reg rdi) ++ movq (match op with | Bdiv -> (reg rax) | Bmod -> (reg rdx) | _ -> failwith("weird...")) (reg rdi)
   | TEbinop (Beq | Bne as op, e1, e2) -> (* = et !=, mais seulement pour les entiers *)
     let l = new_label () in
-    (expr env e1) ++ movq (reg rdi) (reg rsi) ++ (expr env e2) ++ movq (reg rdi) (reg rdx)
-	++ movq (imm 1) (reg rdi) ++ cmpq (reg rsi) (reg rdi) ++ (match op with | Beq -> je | Bne -> jne) l
-	++ movq (imm 0) (reg rdi) ++ label l
+    (expr env e1) ++ pushq (reg rdi) ++ (expr env e2) ++ popq rsi ++ movq (reg rdi) (reg rdx)
+	  ++ movq (imm 1) (reg rdi) ++ cmpq (reg rsi) (reg rdi) ++ (match op with | Beq -> je | Bne -> jne | _ -> failwith("weird...")) l
+	  ++ movq (imm 0) (reg rdi) ++ label l
   | TEunop (Uneg, e1) -> (* négation d'entiers *)
     (expr env e1) ++ negq (reg rdi)
   | TEunop (Unot, e1) -> (* négation de booléens *)
@@ -125,51 +125,51 @@ let rec expr env e = match e.expr_desc with
 	  ++ (aux q)
 	in aux el
   | TEident x -> (* appel d'une variable *)
-    movq (ind ~ofs:(try Hashtbl.find env.vars x.v_id with _ -> x.v_id) rbp) (reg rdi)
+    movq (ind ~ofs:(try Hashtbl.find env.vars x.v_id with _ -> failwith("undefined variable")) rbp) (reg rdi)
   | TEassign ([{expr_desc=TEident x}], [e1]) -> (* assignation d'une valeur à une variable *)
-    (expr env e1) ++ (match x.v_name with | "_" -> nop | _ -> movq (reg rdi) (ind ~ofs:(try Hashtbl.find env.vars x.v_id with _ -> x.v_id) rbp))
+    (expr env e1) ++ (match x.v_name with | "_" -> nop | _ -> movq (reg rdi) (ind ~ofs:(try Hashtbl.find env.vars x.v_id with _ -> failwith("undefined variable")) rbp))
   | TEassign (vl, el) -> (* assignations en parallèle *)
     let rec aux = function
 	  | [], [] -> nop
 	  | {expr_desc=TEident x} :: rv, e :: re -> (expr env e) ++ (match x.v_name with | "_" -> nop | _ -> movq (reg rdi) (ind ~ofs:(Hashtbl.find env.vars x.v_id) rbp)) ++ (aux (rv, re))
-	in aux (vl, el)
-  | TEassign (_, _) ->
-     assert false
+	  | _ -> failwith("weird..")
+    in aux (vl, el)
   | TEblock el -> (* traitement des blocs *)
     let rec aux = function
 	  | [] -> nop
-	  | e :: re -> (expr env e) ++ (aux re)
+	  | e :: re -> let ex = (expr env e) in ex ++ (aux re)
 	in aux el
   | TEif (e1, e2, e3) -> (* if *)
     let l1 = new_label () in
-	let l2 = new_label () in
+	  let l2 = new_label () in
     (expr env e1) ++ testq (reg rdi) (reg rdi) ++ je l1 ++ (expr env e1) ++ jmp l2 ++ label l1 ++ (expr env e2) ++ label l2
   | TEfor (e1, e2) -> (* for *)
     let l1 = new_label () in
     let l2 = new_label () in
-	label l1 ++ (expr env e1) ++ testq (reg rdi) (reg rdi) ++ je l2 ++ (expr env e2) ++ jmp l1 ++ label l2
+	  label l1 ++ (expr env e1) ++ testq (reg rdi) (reg rdi) ++ je l2 ++ (expr env e2) ++ jmp l1 ++ label l2
   | TEnew ty ->
      (* TODO code pour new S *) assert false
   | TEcall (f, el) -> (* appel de fonction : on place tous les arguments sur la pile puis on sauvegarde %rbp et on appelle la fonction *)
     let rec aux = function
-	  | [] -> nop
-	  | e :: re -> (aux re) ++ (expr env e) ++ pushq (reg rdi)
-	in aux el
-	++ call ("F_" ^ f.fn_name)
-	++ movq (reg rax) (reg rdi)
+      | [] -> nop
+      | e :: re -> (aux re) ++ (expr env e) ++ pushq (reg rdi)
+    in aux el
+    ++ call ("F_" ^ f.fn_name)
+    ++ movq (reg rax) (reg rdi)
   | TEdot (e1, {f_ofs=ofs}) ->
-     (* TODO code pour e.f *) assert false
+    (* TODO code pour e.f *) assert false
   | TEvars (vl, el) -> (* déclaration de variables et assignation de valeurs *)
     let rec aux = function
 	  | [], [] -> nop
 	  | v :: rv, e :: re -> begin
-        env.current_ofs <- env.current_ofs - 8;
-		Hashtbl.add env.vars v.v_id env.current_ofs;
-		match e.expr_desc with 
-		  | TEnil -> pushq (imm 0) ++ (aux (rv, re))
-		  | _ -> (expr env e) ++ pushq (reg rdi) ++ (aux (rv, re))
-	  end
-	in aux (vl, el)
+      env.current_ofs <- env.current_ofs - 8;
+      Hashtbl.add env.vars v.v_id env.current_ofs;
+      match e.expr_desc with 
+        | TEnil -> pushq (imm 0) ++ (aux (rv, re))
+        | _ -> (expr env e) ++ pushq (reg rdi) ++ (aux (rv, re))
+      end
+    | _ -> failwith("weird...")
+	  in aux (vl, el)
   | TEreturn [] -> (* retour de fonction de type unit *)
     jmp env.exit_label
   | TEreturn [e1] -> (* retour de fonction avec un seul élément, on le place dans %rax *)
@@ -179,13 +179,13 @@ let rec expr env e = match e.expr_desc with
   | TEincdec (e1, op) ->
     (* TODO code pour return e++, e-- *) assert false
 
-let function_ f e =
+let function_ f e = (* avant d'écrire une fonction, on place ses arguments dans la table de hachage sachant qu'il sont placés dans la pile au dessus du pointeur *)
   if !debug then eprintf "function %s:@." f.fn_name;
   let s = f.fn_name in
   let env = new_env ("E_" ^ s) (Hashtbl.create 0) 0 in
   let rec aux ofs = function
     | [] -> ()
-	| x :: rx -> Hashtbl.add env.vars x.v_id ofs; aux (ofs + 8) rx
+	  | x :: rx -> Hashtbl.add env.vars x.v_id ofs; aux (ofs + 8) rx
   in aux 16 f.fn_params;
   label ("F_" ^ s) ++ pushq (reg rbp) ++ movq (reg rsp) (reg rbp) ++ expr env e ++ label ("E_" ^ s) ++ movq (reg rbp) (reg rsp) ++ popq rbp ++ ret
 
@@ -208,8 +208,6 @@ let file ?debug:(b=false) dl =
 	  inline "
 	  "
    ;
-   (* TODO print pour d'autres valeurs *)
-   (* TODO appel malloc de stdlib *)
     data =
       label "S_int" ++ string "%ld" ++
 	  label "S_string" ++ string "%s" ++
