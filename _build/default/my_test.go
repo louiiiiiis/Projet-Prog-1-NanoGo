@@ -6,7 +6,7 @@ func square(x int) int {
 }
 
 func main() {
-	fmt.Print(square(8) + 1, " ", square(1) + 10, " ", square(5), "\n");
+	fmt.Print(square(8) + 1, square(1) + 10, square(5));
 }
 
 
