@@ -125,9 +125,9 @@ let rec expr env e = match e.expr_desc with
 	  ++ movq (ilab "S_space") (reg rdi) ++ call "print_string" ++ (aux q)
 	in aux el
   | TEident x -> (* appel d'une variable *)
-    movq (ind ~ofs:(Hashtbl.find env.vars x.v_id) rbp) (reg rdi)
+    movq (ind ~ofs:(try Hashtbl.find env.vars x.v_id with _ -> x.v_id) rbp) (reg rdi)
   | TEassign ([{expr_desc=TEident x}], [e1]) -> (* assignation d'une valeur à une variable *)
-    (expr env e1) ++ (match x.v_name with | "_" -> nop | _ -> movq (reg rdi) (ind ~ofs:(Hashtbl.find env.vars x.v_id) rbp))
+    (expr env e1) ++ (match x.v_name with | "_" -> nop | _ -> movq (reg rdi) (ind ~ofs:(try Hashtbl.find env.vars x.v_id with _ -> x.v_id) rbp))
   | TEassign (vl, el) -> (* assignations en parallèle *)
     let rec aux = function
 	  | [], [] -> nop
@@ -175,7 +175,7 @@ let rec expr env e = match e.expr_desc with
   | TEreturn [e1] -> (* retour de fonction avec un seul élément, on le place dans %rax *)
     (expr env e1) ++ movq (reg rdi) (reg rax) ++ movq (reg rbp) (reg rsp) ++ movq (ind rbp) (reg rbp) ++ ret
   | TEreturn _ ->
-     assert false
+     failwith("function returning more than 1 element, work in progress...")
   | TEincdec (e1, op) ->
     (* TODO code pour return e++, e-- *) assert false
 
