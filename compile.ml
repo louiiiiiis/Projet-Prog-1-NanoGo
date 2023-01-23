@@ -149,13 +149,14 @@ let rec expr env e = match e.expr_desc with
 	  label l1 ++ (expr env e1) ++ testq (reg rdi) (reg rdi) ++ je l2 ++ (expr env e2) ++ jmp l1 ++ label l2
   | TEnew ty ->
      (* TODO code pour new S *) assert false
-  | TEcall (f, el) -> (* appel de fonction : on place tous les arguments sur la pile puis on sauvegarde %rbp et on appelle la fonction *)
+  | TEcall (f, el) -> (* appel de fonction : on place tous les arguments sur la pile puis on sauvegarde %rbp et on appelle la fonction, à la fin il faut aussi tout dépiler *)
     let rec aux = function
       | [] -> nop
       | e :: re -> (aux re) ++ (expr env e) ++ pushq (reg rdi)
     in aux el
     ++ call ("F_" ^ f.fn_name)
     ++ movq (reg rax) (reg rdi)
+	++ addq (imm (8 * (List.length el))) (reg rsp)
   | TEdot (e1, {f_ofs=ofs}) ->
     (* TODO code pour e.f *) assert false
   | TEvars (vl, el) -> (* déclaration de variables et assignation de valeurs *)
