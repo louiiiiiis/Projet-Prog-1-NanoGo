@@ -109,9 +109,10 @@ let rec expr env e = match e.expr_desc with
   | TEunop (Unot, e1) -> (* négation de booléens *)
     (expr env e1) ++ notq (reg rdi)
   | TEunop (Uamp, e1) -> (* récupération d'adresse *)
-    match e1.expr_desc with
+    begin match e1.expr_desc with
 	  | TEident x -> leaq (ind ~ofs:(try Hashtbl.find env.vars x.v_id with _ -> failwith("undefined variable")) rbp) rdi (* adresse d'une variable *)
 	  | _ -> failwith ("work in progress...")
+	end
   | TEunop (Ustar, e1) -> (* valeur d'un pointeur *)
     (expr env e1) ++ movq (ind rdi) (reg rdi)
   | TEprint el -> (* on a différentes fonctions pour print les différents types *)
@@ -180,9 +181,10 @@ let rec expr env e = match e.expr_desc with
   | TEreturn _ ->
     failwith("function returning more than 1 element, work in progress...")
   | TEincdec (e1, op) -> (* instructions x++ et x-- quand x est une variable entière *)
-    match e1.expr_desc with
+    begin match e1.expr_desc with
 	  | TEident x -> (match op with | Inc -> addq | Dec -> subq) (imm 1) (ind ~ofs:(try Hashtbl.find env.vars x.v_id with _ -> failwith("undefined variable")) rbp)
 	  | _ -> failwith("inc/dec can only be used on variables, work in progress")
+	end
 
 let function_ f e = (* avant d'écrire une fonction, on place ses arguments dans la table de hachage sachant qu'il sont placés dans la pile au dessus du pointeur *)
   if !debug then eprintf "function %s:@." f.fn_name;
