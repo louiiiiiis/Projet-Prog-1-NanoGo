@@ -108,8 +108,10 @@ let rec expr env e = match e.expr_desc with
     (expr env e1) ++ negq (reg rdi)
   | TEunop (Unot, e1) -> (* négation de booléens *)
     (expr env e1) ++ notq (reg rdi)
-  | TEunop (Uamp, e1) ->
-    (* TODO code pour & *) assert false 
+  | TEunop (Uamp, e1) -> (* récupération d'adresse *)
+    match e1.expr_desc with
+	  | TEident x -> leaq (ind ~ofs:(try Hashtbl.find env.vars x.v_id with _ -> failwith("undefined variable")) rbp) rdi (* adresse d'une variable *)
+	  | _ -> failwith ("work in progress...")
   | TEunop (Ustar, e1) -> (* valeur d'un pointeur *)
     (expr env e1) ++ movq (ind rdi) (reg rdi)
   | TEprint el -> (* on a différentes fonctions pour print les différents types *)
@@ -132,7 +134,7 @@ let rec expr env e = match e.expr_desc with
     let rec aux = function
 	  | [], [] -> nop
 	  | {expr_desc=TEident x} :: rv, e :: re -> (expr env e) ++ (match x.v_name with | "_" -> nop | _ -> movq (reg rdi) (ind ~ofs:(Hashtbl.find env.vars x.v_id) rbp)) ++ (aux (rv, re))
-	  | _ -> failwith("weird..")
+	  | _ -> failwith("weird...")
     in aux (vl, el)
   | TEblock el -> (* traitement des blocs *)
     let rec aux = function
@@ -148,17 +150,17 @@ let rec expr env e = match e.expr_desc with
     let l2 = new_label () in
 	  label l1 ++ (expr env e1) ++ testq (reg rdi) (reg rdi) ++ je l2 ++ (expr env e2) ++ jmp l1 ++ label l2
   | TEnew ty ->
-     (* TODO code pour new S *) assert false
+    failwith("new(S) can't be used now, work in progess...")
   | TEcall (f, el) -> (* appel de fonction : on place tous les arguments sur la pile puis on sauvegarde %rbp et on appelle la fonction, à la fin il faut aussi tout dépiler *)
     let rec aux = function
       | [] -> nop
       | e :: re -> (aux re) ++ (expr env e) ++ pushq (reg rdi)
-    in aux el
+    in aux el (* empilage *)
     ++ call ("F_" ^ f.fn_name)
     ++ movq (reg rax) (reg rdi)
-	++ addq (imm (8 * (List.length el))) (reg rsp)
+	++ addq (imm (8 * (List.length el))) (reg rsp) (* dépilage *)
   | TEdot (e1, {f_ofs=ofs}) ->
-    (* TODO code pour e.f *) assert false
+    failwith("structures can't be used now, work in progress...")
   | TEvars (vl, el) -> (* déclaration de variables et assignation de valeurs *)
     let rec aux = function
 	  | [], [] -> nop
@@ -177,8 +179,10 @@ let rec expr env e = match e.expr_desc with
     (expr env e1) ++ movq (reg rdi) (reg rax) ++ jmp env.exit_label
   | TEreturn _ ->
     failwith("function returning more than 1 element, work in progress...")
-  | TEincdec (e1, op) ->
-    (* TODO code pour return e++, e-- *) assert false
+  | TEincdec (e1, op) -> (* instructions x++ et x-- quand x est une variable entière *)
+    match e1.expr_desc with
+	  | TEident x -> (match op with | Inc -> addq | Dec -> subq) (imm 1) (ind ~ofs:(try Hashtbl.find env.vars x.v_id with _ -> failwith("undefined variable")) rbp)
+	  | _ -> failwith("inc/dec can only be used on variables, work in progress")
 
 let function_ f e = (* avant d'écrire une fonction, on place ses arguments dans la table de hachage sachant qu'il sont placés dans la pile au dessus du pointeur *)
   if !debug then eprintf "function %s:@." f.fn_name;
@@ -196,8 +200,7 @@ let decl code = function
 
 let file ?debug:(b=false) dl =
   debug := b;
-  (* TODO calcul offset champs *)
-  (* TODO code fonctions *) let funs = List.fold_left decl nop dl in
+  let funs = List.fold_left decl nop dl in
   { text =
       globl "main" ++ label "main" ++
       call "F_main" ++
