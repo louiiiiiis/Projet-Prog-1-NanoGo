@@ -1,0 +1,179 @@
+# dune build @all
+# OCAMLPARAM: unset
+# Shared cache: disabled
+# Workspace root: /users/dptinfo/lachaize/aaa/Projet-Prog-1-NanoGo
+# Auto-detected concurrency: 8
+$ /usr/bin/ocamlc.opt -config > /tmp/dune_421f3d_output
+# Dune context:
+#  { name = "default"
+#  ; kind = "default"
+#  ; profile = Dev
+#  ; merlin = true
+#  ; for_host = None
+#  ; fdo_target_exe = None
+#  ; build_dir = "default"
+#  ; toplevel_path =
+#      Some External "/users/dptinfo/lachaize/.opam/default/lib/toplevel"
+#  ; ocaml_bin = External "/usr/bin"
+#  ; ocaml = Ok External "/users/dptinfo/lachaize/.opam/default/bin/ocaml"
+#  ; ocamlc = External "/usr/bin/ocamlc.opt"
+#  ; ocamlopt = Ok External "/usr/bin/ocamlopt.opt"
+#  ; ocamldep = Ok External "/usr/bin/ocamldep.opt"
+#  ; ocamlmklib = Ok External "/usr/bin/ocamlmklib.opt"
+#  ; env =
+#      map
+#        { "DUNE_OCAML_HARDCODED" : "/users/dptinfo/lachaize/.opam/default/lib"
+#        ; "DUNE_OCAML_STDLIB" : "/usr/lib/ocaml"
+#        ; "DUNE_SOURCEROOT" :
+#            "/users/dptinfo/lachaize/aaa/Projet-Prog-1-NanoGo"
+#        ; "INSIDE_DUNE" :
+#            "/users/dptinfo/lachaize/aaa/Projet-Prog-1-NanoGo/_build/default"
+#        ; "OCAMLFIND_IGNORE_DUPS_IN" :
+#            "/users/dptinfo/lachaize/aaa/Projet-Prog-1-NanoGo/_build/install/default/lib"
+#        ; "OCAMLPATH" :
+#            "/users/dptinfo/lachaize/aaa/Projet-Prog-1-NanoGo/_build/install/default/lib"
+#        ; "OCAMLTOP_INCLUDE_PATH" :
+#            "/users/dptinfo/lachaize/aaa/Projet-Prog-1-NanoGo/_build/install/default/lib/toplevel"
+#        ; "OCAML_COLOR" : "always"
+#        ; "OPAMCOLOR" : "always"
+#        }
+#  ; findlib_paths = [ External "/users/dptinfo/lachaize/.opam/default/lib" ]
+#  ; arch_sixtyfour = true
+#  ; natdynlink_supported = true
+#  ; supports_shared_libraries = true
+#  ; ocaml_config =
+#      { version = "4.08.1"
+#      ; standard_library_default = "/usr/lib/ocaml"
+#      ; standard_library = "/usr/lib/ocaml"
+#      ; standard_runtime = "the_standard_runtime_variable_was_deleted"
+#      ; ccomp_type = "cc"
+#      ; c_compiler = "x86_64-linux-gnu-gcc"
+#      ; ocamlc_cflags = [ "-O2"; "-fno-strict-aliasing"; "-fwrapv"; "-fPIC" ]
+#      ; ocamlc_cppflags = [ "-D_FILE_OFFSET_BITS=64"; "-D_REENTRANT" ]
+#      ; ocamlopt_cflags = [ "-O2"; "-fno-strict-aliasing"; "-fwrapv" ]
+#      ; ocamlopt_cppflags = [ "-D_FILE_OFFSET_BITS=64"; "-D_REENTRANT" ]
+#      ; bytecomp_c_compiler =
+#          [ "x86_64-linux-gnu-gcc"
+#          ; "-O2"
+#          ; "-fno-strict-aliasing"
+#          ; "-fwrapv"
+#          ; "-fPIC"
+#          ; "-D_FILE_OFFSET_BITS=64"
+#          ; "-D_REENTRANT"
+#          ]
+#      ; bytecomp_c_libraries = [ "-lm"; "-ldl"; "-lpthread" ]
+#      ; native_c_compiler =
+#          [ "x86_64-linux-gnu-gcc"
+#          ; "-O2"
+#          ; "-fno-strict-aliasing"
+#          ; "-fwrapv"
+#          ; "-D_FILE_OFFSET_BITS=64"
+#          ; "-D_REENTRANT"
+#          ]
+#      ; native_c_libraries = [ "-lm"; "-ldl" ]
+#      ; native_pack_linker = [ "x86_64-linux-gnu-ld"; "-r"; "-o" ]
+#      ; cc_profile = [ "-pg" ]
+#      ; architecture = "amd64"
+#      ; model = "default"
+#      ; int_size = 63
+#      ; word_size = 64
+#      ; system = "linux"
+#      ; asm = [ "x86_64-linux-gnu-as" ]
+#      ; asm_cfi_supported = true
+#      ; with_frame_pointers = false
+#      ; ext_exe = ""
+#      ; ext_obj = ".o"
+#      ; ext_asm = ".s"
+#      ; ext_lib = ".a"
+#      ; ext_dll = ".so"
+#      ; os_type = "Unix"
+#      ; default_executable_name = "a.out"
+#      ; systhread_supported = true
+#      ; host = "x86_64-pc-linux-gnu"
+#      ; target = "x86_64-pc-linux-gnu"
+#      ; profiling = true
+#      ; flambda = false
+#      ; spacetime = false
+#      ; safe_string = false
+#      ; exec_magic_number = "Caml1999X025"
+#      ; cmi_magic_number = "Caml1999I025"
+#      ; cmo_magic_number = "Caml1999O025"
+#      ; cma_magic_number = "Caml1999A025"
+#      ; cmx_magic_number = "Caml1999Y025"
+#      ; cmxa_magic_number = "Caml1999Z025"
+#      ; ast_impl_magic_number = "Caml1999M025"
+#      ; ast_intf_magic_number = "Caml1999N025"
+#      ; cmxs_magic_number = "Caml1999D025"
+#      ; cmt_magic_number = "Caml1999T025"
+#      ; natdynlink_supported = true
+#      ; supports_shared_libraries = true
+#      ; windows_unicode = false
+#      }
+#  }
+$ (cd _build/default && /users/dptinfo/lachaize/.opam/default/bin/menhir -v lachaize/src/parser.mly --base lachaize/src/parser --infer-write-query lachaize/src/parser__mock.ml.mock)
+$ (cd _build/default && /usr/bin/ocamllex -q -o lachaize/src/lexer.ml lachaize/src/lexer.mll)
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -impl lachaize/src/main.ml) > _build/default/lachaize/src/.main.eobjs/main.ml.d
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -impl lachaize/src/parser__mock.ml.mock) > _build/default/lachaize/src/.main.eobjs/parser__mock.ml.mock.d
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -impl lachaize/src/lexer.ml) > _build/default/lachaize/src/.main.eobjs/lexer.ml.d
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -impl lachaize/src/compile.ml) > _build/default/lachaize/src/.main.eobjs/compile.ml.d
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -impl lachaize/src/pretty.ml) > _build/default/lachaize/src/.main.eobjs/pretty.ml.d
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -impl lachaize/src/usage.ml) > _build/default/lachaize/src/.main.eobjs/usage.ml.d
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -impl lachaize/src/typing.ml) > _build/default/lachaize/src/.main.eobjs/typing.ml.d
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -intf lachaize/src/x86_64.mli) > _build/default/lachaize/src/.main.eobjs/x86_64.mli.d
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -intf lachaize/src/ast.mli) > _build/default/lachaize/src/.main.eobjs/ast.mli.d
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -intf lachaize/src/tast.mli) > _build/default/lachaize/src/.main.eobjs/tast.mli.d
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -impl lachaize/src/lib.ml) > _build/default/lachaize/src/.main.eobjs/lib.ml.d
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -bin-annot -I lachaize/src/.main.eobjs/byte -no-alias-deps -opaque -o lachaize/src/.main.eobjs/byte/ast.cmi -c -intf lachaize/src/ast.mli)
+$ (cd _build/.sandbox/c0712368f5ff6be41cef5b58fd77317f/default && /usr/bin/ocamlc.opt -g -I lachaize/src/.main.eobjs/byte -short-paths -i -impl lachaize/src/parser__mock.ml.mock) > _build/.sandbox/c0712368f5ff6be41cef5b58fd77317f/default/lachaize/src/parser__mock.mli.inferred
+$ (cd _build/default && /users/dptinfo/lachaize/.opam/default/bin/menhir -v lachaize/src/parser.mly --base lachaize/src/parser --infer-read-reply lachaize/src/parser__mock.mli.inferred)
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -intf lachaize/src/parser.mli) > _build/default/lachaize/src/.main.eobjs/parser.mli.d
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -impl lachaize/src/x86_64.ml) > _build/default/lachaize/src/.main.eobjs/x86_64.ml.d
+$ (cd _build/default && /usr/bin/ocamldep.opt -modules -impl lachaize/src/parser.ml) > _build/default/lachaize/src/.main.eobjs/parser.ml.d
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -bin-annot -I lachaize/src/.main.eobjs/byte -no-alias-deps -opaque -o lachaize/src/.main.eobjs/byte/usage.cmo -c -impl lachaize/src/usage.ml)
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -bin-annot -I lachaize/src/.main.eobjs/byte -no-alias-deps -opaque -o lachaize/src/.main.eobjs/byte/tast.cmi -c -intf lachaize/src/tast.mli)
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -bin-annot -I lachaize/src/.main.eobjs/byte -no-alias-deps -opaque -o lachaize/src/.main.eobjs/byte/parser.cmi -c -intf lachaize/src/parser.mli)
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -bin-annot -I lachaize/src/.main.eobjs/byte -no-alias-deps -opaque -o lachaize/src/.main.eobjs/byte/x86_64.cmi -c -intf lachaize/src/x86_64.mli)
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -bin-annot -I lachaize/src/.main.eobjs/byte -no-alias-deps -opaque -o lachaize/src/.main.eobjs/byte/lib.cmo -c -impl lachaize/src/lib.ml)
+$ (cd _build/default && /usr/bin/ocamlopt.opt -g -I lachaize/src/.main.eobjs/byte -I lachaize/src/.main.eobjs/native -intf-suffix .ml -no-alias-deps -opaque -o lachaize/src/.main.eobjs/native/usage.cmx -c -impl lachaize/src/usage.ml)
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -bin-annot -I lachaize/src/.main.eobjs/byte -no-alias-deps -opaque -o lachaize/src/.main.eobjs/byte/lexer.cmo -c -impl lachaize/src/lexer.ml)
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -bin-annot -I lachaize/src/.main.eobjs/byte -no-alias-deps -opaque -o lachaize/src/.main.eobjs/byte/pretty.cmo -c -impl lachaize/src/pretty.ml)
+> File "lachaize/src/pretty.ml", line 201, characters 2-433:
+> 201 | ..match typ with
+> 202 |   | Tint -> create_node "Tint" [] []
+> 203 |   | Tbool -> create_node "Tbool" [] []
+> 204 |   | Tstring -> create_node "Tstring" [] []
+> 205 |   | Tstruct {s_name; s_fields} -> create_node "Tstruct" [ "s_name = \"" ^ s_name ^ "\""] []
+> 206 |   | Tptr typ -> create_node "Tptr" [] [ ("typ", get_tast_typ typ) ]
+> 207 |   | Twild -> create_node "Twild" [] []
+> 208 |   | Tmany typ_list -> create_node "Tmany" [] [ ("typ_list", fold_children get_tast_typ typ_list) ]
+> Warning 8: this pattern-matching is not exhaustive.
+> Here is an example of a case that is not matched:
+> Tptrnil
+$ (cd _build/default && /usr/bin/ocamlopt.opt -g -I lachaize/src/.main.eobjs/byte -I lachaize/src/.main.eobjs/native -intf-suffix .ml -no-alias-deps -opaque -o lachaize/src/.main.eobjs/native/lib.cmx -c -impl lachaize/src/lib.ml)
+$ (cd _build/default && /usr/bin/ocamlopt.opt -g -I lachaize/src/.main.eobjs/byte -I lachaize/src/.main.eobjs/native -intf-suffix .ml -no-alias-deps -opaque -o lachaize/src/.main.eobjs/native/lexer.cmx -c -impl lachaize/src/lexer.ml)
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -bin-annot -I lachaize/src/.main.eobjs/byte -intf-suffix .ml -no-alias-deps -opaque -o lachaize/src/.main.eobjs/byte/x86_64.cmo -c -impl lachaize/src/x86_64.ml)
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -bin-annot -I lachaize/src/.main.eobjs/byte -no-alias-deps -opaque -o lachaize/src/.main.eobjs/byte/typing.cmo -c -impl lachaize/src/typing.ml)
+$ (cd _build/default && /usr/bin/ocamlopt.opt -g -I lachaize/src/.main.eobjs/byte -I lachaize/src/.main.eobjs/native -intf-suffix .ml -no-alias-deps -opaque -o lachaize/src/.main.eobjs/native/x86_64.cmx -c -impl lachaize/src/x86_64.ml)
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -bin-annot -I lachaize/src/.main.eobjs/byte -no-alias-deps -opaque -o lachaize/src/.main.eobjs/byte/compile.cmo -c -impl lachaize/src/compile.ml)
+$ (cd _build/default && /usr/bin/ocamlopt.opt -g -I lachaize/src/.main.eobjs/byte -I lachaize/src/.main.eobjs/native -intf-suffix .ml -no-alias-deps -opaque -o lachaize/src/.main.eobjs/native/pretty.cmx -c -impl lachaize/src/pretty.ml)
+> File "lachaize/src/pretty.ml", line 201, characters 2-433:
+> 201 | ..match typ with
+> 202 |   | Tint -> create_node "Tint" [] []
+> 203 |   | Tbool -> create_node "Tbool" [] []
+> 204 |   | Tstring -> create_node "Tstring" [] []
+> 205 |   | Tstruct {s_name; s_fields} -> create_node "Tstruct" [ "s_name = \"" ^ s_name ^ "\""] []
+> 206 |   | Tptr typ -> create_node "Tptr" [] [ ("typ", get_tast_typ typ) ]
+> 207 |   | Twild -> create_node "Twild" [] []
+> 208 |   | Tmany typ_list -> create_node "Tmany" [] [ ("typ_list", fold_children get_tast_typ typ_list) ]
+> Warning 8: this pattern-matching is not exhaustive.
+> Here is an example of a case that is not matched:
+> Tptrnil
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -bin-annot -I lachaize/src/.main.eobjs/byte -no-alias-deps -opaque -o lachaize/src/.main.eobjs/byte/main.cmo -c -impl lachaize/src/main.ml)
+$ (cd _build/default && /usr/bin/ocamlopt.opt -g -I lachaize/src/.main.eobjs/byte -I lachaize/src/.main.eobjs/native -intf-suffix .ml -no-alias-deps -opaque -o lachaize/src/.main.eobjs/native/typing.cmx -c -impl lachaize/src/typing.ml)
+$ (cd _build/default && /usr/bin/ocamlopt.opt -g -I lachaize/src/.main.eobjs/byte -I lachaize/src/.main.eobjs/native -intf-suffix .ml -no-alias-deps -opaque -o lachaize/src/.main.eobjs/native/main.cmx -c -impl lachaize/src/main.ml)
+$ (cd _build/default && /usr/bin/ocamlopt.opt -g -I lachaize/src/.main.eobjs/byte -I lachaize/src/.main.eobjs/native -intf-suffix .ml -no-alias-deps -opaque -o lachaize/src/.main.eobjs/native/compile.cmx -c -impl lachaize/src/compile.ml)
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -bin-annot -I lachaize/src/.main.eobjs/byte -intf-suffix .ml -no-alias-deps -opaque -o lachaize/src/.main.eobjs/byte/parser.cmo -c -impl lachaize/src/parser.ml)
+$ (cd _build/default && /usr/bin/ocamlopt.opt -g -I lachaize/src/.main.eobjs/byte -I lachaize/src/.main.eobjs/native -intf-suffix .ml -no-alias-deps -opaque -o lachaize/src/.main.eobjs/native/parser.cmx -c -impl lachaize/src/parser.ml)
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -o lachaize/src/main.bc-for-jsoo -no-check-prims lachaize/src/.main.eobjs/byte/lib.cmo lachaize/src/.main.eobjs/byte/usage.cmo lachaize/src/.main.eobjs/byte/typing.cmo lachaize/src/.main.eobjs/byte/x86_64.cmo lachaize/src/.main.eobjs/byte/compile.cmo lachaize/src/.main.eobjs/byte/parser.cmo lachaize/src/.main.eobjs/byte/lexer.cmo lachaize/src/.main.eobjs/byte/pretty.cmo lachaize/src/.main.eobjs/byte/main.cmo)
+$ (cd _build/default && /usr/bin/ocamlc.opt -g -o lachaize/src/main.bc lachaize/src/.main.eobjs/byte/lib.cmo lachaize/src/.main.eobjs/byte/usage.cmo lachaize/src/.main.eobjs/byte/typing.cmo lachaize/src/.main.eobjs/byte/x86_64.cmo lachaize/src/.main.eobjs/byte/compile.cmo lachaize/src/.main.eobjs/byte/parser.cmo lachaize/src/.main.eobjs/byte/lexer.cmo lachaize/src/.main.eobjs/byte/pretty.cmo lachaize/src/.main.eobjs/byte/main.cmo)
+$ (cd _build/default && /usr/bin/ocamlopt.opt -g -o lachaize/src/main.exe lachaize/src/.main.eobjs/native/lib.cmx lachaize/src/.main.eobjs/native/usage.cmx lachaize/src/.main.eobjs/native/typing.cmx lachaize/src/.main.eobjs/native/x86_64.cmx lachaize/src/.main.eobjs/native/compile.cmx lachaize/src/.main.eobjs/native/parser.cmx lachaize/src/.main.eobjs/native/lexer.cmx lachaize/src/.main.eobjs/native/pretty.cmx lachaize/src/.main.eobjs/native/main.cmx)
