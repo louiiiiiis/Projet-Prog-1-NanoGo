@@ -7,7 +7,9 @@ func square(x int) int {
 
 func main() {
 	for n := 0; n <= 10; n++ {
-	fmt.Print("carré de ", n, " : ", square(n), "\n");
+		if n%2 == 0 {
+			fmt.Print("square of ", n, " : ", square(n), "\n");
+		}
 	}
 }
 

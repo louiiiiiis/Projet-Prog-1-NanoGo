@@ -34,6 +34,7 @@ exception Anomaly of string
 let debug = ref false
 
 let strings = Hashtbl.create 32
+let () = Hashtbl.add strings "S_true" "true"; Hashtbl.add strings "S_false" "false"
 let alloc_string =
   let r = ref 0 in
   fun s ->
@@ -97,12 +98,12 @@ let rec expr env e = match e.expr_desc with
     (expr env e2) ++ pushq (reg rdi) ++ (expr env e1) ++ popq rsi
 	  ++ (match op with | Badd -> addq | Bsub -> subq | Bmul -> imulq | _ -> failwith("weird...")) (reg rsi) (reg rdi)
   | TEbinop (Bdiv | Bmod as op, e1, e2) -> (* opérations / et % pour les entiers *)
-    (expr env e1) ++ pushq (reg rdi) ++ (expr env e1) ++ popq rax ++ movq (imm 0) (reg rdx)
+    (expr env e1) ++ pushq (reg rdi) ++ (expr env e2) ++ popq rax ++ movq (imm 0) (reg rdx)
 	  ++ idivq (reg rdi) ++ movq (match op with | Bdiv -> (reg rax) | Bmod -> (reg rdx) | _ -> failwith("weird...")) (reg rdi)
   | TEbinop (Beq | Bne as op, e1, e2) -> (* = et !=, mais seulement pour les entiers *)
     let l = new_label () in
     (expr env e1) ++ pushq (reg rdi) ++ (expr env e2) ++ popq rsi ++ movq (reg rdi) (reg rdx)
-	  ++ movq (imm 1) (reg rdi) ++ cmpq (reg rsi) (reg rdi) ++ (match op with | Beq -> je | Bne -> jne | _ -> failwith("weird...")) l
+	  ++ movq (imm 1) (reg rdi) ++ cmpq (reg rsi) (reg rdx) ++ (match op with | Beq -> jne | Bne -> je | _ -> failwith("weird...")) l
 	  ++ movq (imm 0) (reg rdi) ++ label l
   | TEunop (Uneg, e1) -> (* négation d'entiers *)
     (expr env e1) ++ negq (reg rdi)
@@ -121,7 +122,7 @@ let rec expr env e = match e.expr_desc with
 	| t :: q -> begin
 	  match t.expr_typ with
 	  | Tint -> (expr env t) ++ call "print_int"
-	  | Tbool -> let l = new_label () in (expr env t) ++ testq (reg rdi) (reg rdi) ++ movq (ilab "false") (reg rdi) ++ je l ++ movq (ilab "true") (reg rdi) ++ label l ++ call "print_string"
+	  | Tbool -> let l = new_label () in (expr env t) ++ testq (reg rdi) (reg rdi) ++ movq (ilab "S_false") (reg rdi) ++ je l ++ movq (ilab "S_true") (reg rdi) ++ label l ++ call "print_string"
 	  | Tstring -> (expr env t) ++ call "print_string"
 	  | _ -> failwith("not printable type, work in progress...")
 	  end
